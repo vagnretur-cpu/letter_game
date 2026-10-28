@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stavningsspelet för Barn</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Canvas Confetti Library -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Google Fonts för lekfull typografi -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Fredoka', cursive, sans-serif;
+            touch-action: manipulation;
+        }
+
+        @keyframes bounce-gentle {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        @keyframes pulse-shake {
+            0% { transform: scale(1) rotate(0deg); }
+            20% { transform: scale(1.08) rotate(-4deg); }
+            40% { transform: scale(1.08) rotate(4deg); }
+            60% { transform: scale(1.08) rotate(-4deg); }
+            80% { transform: scale(1.08) rotate(4deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+
+        @keyframes wrong-shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+
+        .animate-bounce-gentle {
+            animation: bounce-gentle 2.2s infinite ease-in-out;
+        }
+
+        .animate-correct {
+            animation: pulse-shake 0.4s ease-in-out;
+        }
+
+        .animate-wrong {
+            animation: wrong-shake 0.4s ease-in-out;
+        }
+
+        /* 3D-knappeffekter för barnvänlig touch */
+        .btn-3d {
+            transition: all 0.1s ease;
+            box-shadow: 0 6px 0 rgba(0, 0, 0, 0.18);
+        }
+
+        .btn-3d:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.18);
+        }
+
+        /* Tangentbordsknapp 3D */
+        .btn-key {
+            transition: all 0.08s ease;
+            box-shadow: 0 4px 0 rgba(0, 0, 0, 0.15);
+        }
+        .btn-key:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
+        }
+
+        /* Anpassad scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-200 via-purple-200 to-pink-200 min-h-screen flex items-center justify-center p-3 sm:p-6 select-none overflow-x-hidden">
+
+    <!-- Huvudbehållare för spelet -->
+    <div id="app" class="w-full max-w-xl bg-white/95 backdrop-blur-md rounded-3xl p-4 sm:p-7 shadow-2xl border-4 border-white text-center relative overflow-hidden my-auto">
+        
+        <!-- Ljudkontroll-knapp -->
+        <button id="sound-toggle" onclick="toggleSound()" class="absolute top-4 right-4 bg-yellow-400 hover:bg-yellow-300 text-yellow-900 rounded-full p-2.5 sm:p-3 shadow-md transition transform hover:scale-110 focus:outline-none z-10" aria-label="Ljud av/på">
+            <span id="sound-icon" class="text-xl sm:text-2xl">🔊</span>
+        </button>
+
+        <!-- 1. STARTSKÄRM & INSTÄLLNINGAR -->
+        <div id="start-screen" class="flex flex-col items-center justify-center py-4 space-y-5">
+            <div class="text-7xl sm:text-8xl animate-bounce-gentle my-1">✏️</div>
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-indigo-600 tracking-wide drop-shadow-sm">
+                Stava Ordet!
+            </h1>
+            <p class="text-base sm:text-lg text-gray-700 font-bold max-w-md">
+                Titta på bilden och gissa bokstav för bokstav! Du har 2 försök per bokstav. ✨
+            </p>
+
+            <!-- Välj ordlängd -->
+            <div class="w-full bg-indigo-50/80 p-4 rounded-2xl border-2 border-indigo-100 space-y-3">
+                <span class="text-indigo-900 font-extrabold text-lg sm:text-xl block">
+                    Välj hur långa ord du vill stafa:
+                </span>
+                <div class="grid grid-cols-2 gap-2.5">
+                    <button onclick="selectLength(3)" id="len-btn-3" class="len-btn btn-3d bg-white hover:bg-indigo-100 text-indigo-700 font-extrabold py-3 px-2 rounded-xl border-2 border-indigo-200 text-base sm:text-lg">
+                        3 Bokstäver 🔤
+                    </button>
+                    <button onclick="selectLength(4)" id="len-btn-4" class="len-btn btn-3d bg-white hover:bg-indigo-100 text-indigo-700 font-extrabold py-3 px-2 rounded-xl border-2 border-indigo-200 text-base sm:text-lg">
+                        4 Bokstäver 🔤
+                    </button>
+                    <button onclick="selectLength(5)" id="len-btn-5" class="len-btn btn-3d bg-white hover:bg-indigo-100 text-indigo-700 font-extrabold py-3 px-2 rounded-xl border-2 border-indigo-200 text-base sm:text-lg">
+                        5 Bokstäver 🔤
+                    </button>
+                    <button onclick="selectLength(0)" id="len-btn-0" class="len-btn btn-3d bg-white hover:bg-indigo-100 text-indigo-700 font-extrabold py-3 px-2 rounded-xl border-2 border-indigo-200 text-base sm:text-lg">
+                        Blandat 🎲
+                    </button>
+                </div>
+            </div>
+
+            <!-- Startknapp -->
+            <button onclick="startGame()" class="btn-3d w-full bg-green-500 hover:bg-green-600 text-white font-extrabold text-2xl py-4 rounded-2xl shadow-lg border-b-4 border-green-700 transition transform hover:scale-105 active:scale-95">
+                STARTA SPELET! 🚀
+            </button>
+        </div>
+
+        <!-- 2. SPELSKÄRM -->
+        <div id="game-screen" class="hidden flex-col items-center">
+            <!-- Header för framsteg och försök -->
+            <div class="w-full flex justify-between items-center mb-3 bg-indigo-50 p-3 rounded-2xl border-2 border-indigo-100">
+                <div class="flex items-center space-x-2">
+                    <span class="text-gray-500 text-xs sm:text-sm font-bold">Ord:</span>
+                    <span id="question-number" class="text-lg sm:text-xl font-extrabold text-indigo-600">1/5</span>
+                </div>
+                
+                <!-- Indikator för försök på aktuell bokstav -->
+                <div id="attempts-badge" class="flex items-center space-x-1.5 bg-yellow-100 border border-yellow-300 px-3 py-1 rounded-full">
+                    <span class="text-xs sm:text-sm font-extrabold text-yellow-800">Försök:</span>
+                    <span id="attempts-icons" class="text-base sm:text-lg">🔴🔴</span>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <span class="text-gray-500 text-xs sm:text-sm font-bold">Poäng:</span>
+                    <span id="score-count" class="text-lg sm:text-xl font-extrabold text-green-600">0</span>
+                </div>
+            </div>
+
+            <!-- Bildvisning -->
+            <div id="emoji-container" class="my-2 p-4 bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl w-full flex items-center justify-center min-h-[140px] sm:min-h-[160px]">
+                <div id="emoji-display" class="text-7xl sm:text-8xl select-none transition transform duration-200">🐶</div>
+            </div>
+
+            <!-- Bokstavsrutor (Bokstaverna i ordet) -->
+            <div id="letter-boxes" class="flex justify-center items-center gap-1.5 sm:gap-2.5 my-4 w-full flex-wrap min-h-[64px]">
+                <!-- Genereras dynamiskt -->
+            </div>
+
+            <!-- Feedback-meddelande -->
+            <div id="feedback-message" class="h-8 flex items-center justify-center text-lg sm:text-xl font-extrabold transition-all duration-200 opacity-0 mb-2">
+                &nbsp;
+            </div>
+
+            <!-- 3 Valbara Bokstavsknappar -->
+            <div id="options-container" class="grid grid-cols-3 gap-3 w-full my-2">
+                <!-- 3 knappar genereras dynamiskt -->
+            </div>
+        </div>
+
+        <!-- 3. SLUTSUMMERINGSSKÄRM -->
+        <div id="result-screen" class="hidden flex-col items-center justify-center py-2 space-y-4">
+            <div id="result-trophy" class="text-6xl sm:text-7xl animate-bounce-gentle">🏆</div>
+            
+            <div class="text-center">
+                <h2 id="result-title" class="text-2xl sm:text-3xl font-extrabold text-indigo-600">
+                    Kanonbra stavat!
+                </h2>
+                <p class="text-lg sm:text-xl font-bold text-gray-700 mt-1">
+                    Du klarade <span id="final-score" class="text-green-600 font-extrabold text-2xl">0</span> av 5 ord! ⭐
+                </p>
+            </div>
+
+            <!-- SLUTSUMMERING AV ORDEN -->
+            <div class="w-full bg-slate-50 p-3 sm:p-4 rounded-2xl border-2 border-slate-200 max-h-56 overflow-y-auto custom-scrollbar space-y-2" id="summary-grid">
+                <!-- Genereras dynamiskt -->
+            </div>
+
+            <!-- Omstartsknapp -->
+            <button onclick="restartGame()" class="btn-3d w-full bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xl py-3.5 rounded-2xl border-b-4 border-amber-700 transition transform hover:scale-105 active:scale-95 mt-2">
+                SPELA IGEN 🔄
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // Databas indelad i 3, 4 och 5 bokstäver
+        const WORD_DATABASE = {
+            3: [
+                { word: "SOL", emoji: "☀️" }, { word: "BIL", emoji: "🚗" }, { word: "HUS", emoji: "🏠" },
+                { word: "OXT", emoji: "🐂" }, { word: "OST", emoji: "🧀" }, { word: "EKO", emoji: "🐿️" },
+                { word: "ÄGG", emoji: "🥚" }, { word: "MUS", emoji: "🐭" }, { word: "RÄV", emoji: "🦊" },
+                { word: "KOA", emoji: "🐮" }, { word: "ISL", emoji: "🧊" }, { word: "BÅT", emoji: "⛵" },
+                { word: "TÅG", emoji: "🚂" }, { word: "BUS", emoji: "🚌" }, { word: "LÖV", emoji: "🍃" },
+                { word: "ELD", emoji: "🔥" }, { word: "BOK", emoji: "📖" }, { word: "SAX", emoji: "✂️" },
+                { word: "ROS", emoji: "🌹" }, { word: "HAI", emoji: "🦈" }, { word: "SÄL", emoji: "🦭" },
+                { word: "REN", emoji: "🦌" }, { word: "APA", emoji: "🐵" }, { word: "ÖGA", emoji: "👁️" },
+                { word: "ÖRA", emoji: "👂" }, { word: "FOT", emoji: "🦶" }, { word: "MUN", emoji: "👄" },
+                { word: "BEN", emoji: "🦴" }, { word: "KOP", emoji: "☕" }, { word: "NÅL", emoji: "🪡" },
+                { word: "SÅG", emoji: "🪚" }, { word: "KAM", emoji: "🪮" }, { word: "RÖD", emoji: "🔴" },
+                { word: "BLÅ", emoji: "🔵" }, { word: "GUL", emoji: "🟡" }, { word: "NYS", emoji: "🧶" },
+                { word: "RIS", emoji: "🍚" }, { word: "PAJ", emoji: "🥧" }, { word: "BÄR", emoji: "🫐" }
+            ],
+            4: [
+                { word: "KATT", emoji: "🐱" }, { word: "HUND", emoji: "🐶" }, { word: "GRIS", emoji: "🐷" },
+                { word: "ALM", emoji: "🌳" }, { word: "ANNA", emoji: "🦆" }, { word: "FISK", emoji: "🐟" },
+                { word: "HAST", emoji: "🐴" }, { word: "VALP", emoji: "🐕" }, { word: "ORMM", emoji: "🐍" },
+                { word: "SVAL", emoji: "🕊️" }, { word: "LION", emoji: "🦁" }, { word: "VART", emoji: "🐺" },
+                { word: "FLOT", emoji: "🛟" }, { word: "MÅNE", emoji: "🌙" }, { word: "REGN", emoji: "🌧️" },
+                { word: "SNÖÖ", emoji: "❄️" }, { word: "BLIX", emoji: "⚡" }, { word: "GRAN", emoji: "🌲" },
+                { word: "PALM", emoji: "🌴" }, { word: "ROSA", emoji: "🌸" }, { word: "MAJS", emoji: "🌽" },
+                { word: "KIWI", emoji: "🥝" }, { word: "BRÖD", emoji: "🍞" }, { word: "TACO", emoji: "🌮" },
+                { word: "KAKA", emoji: "🍪" }, { word: "GODI", emoji: "🍬" }, { word: "SAFT", emoji: "🧃" },
+                { word: "TAXI", emoji: "🚕" }, { word: "CYKE", emoji: "🚲" }, { word: "SLOT", emoji: "🏰" },
+                { word: "TÄLT", emoji: "⛺" }, { word: "RING", emoji: "💍" }, { word: "HATT", emoji: "🎩" },
+                { word: "TRÖJ", emoji: "👕" }, { word: "SKOR", emoji: "👞" }, { word: "DÖR3", emoji: "🚪" },
+                { word: "BOKS", emoji: "📚" }, { word: "LÅSS", emoji: "🔒" }, { word: "SPAD", emoji: "🛠️" },
+                { word: "NÄSA", emoji: "👃" }, { word: "HAND", emoji: "✋" }, { word: "TAND", emoji: "🦷" },
+                { word: "KOCK", emoji: "🧑‍🍳" }, { word: "NINJ", emoji: "🥷" }, { word: "MUNK", emoji: "🍩" }
+            ],
+            5: [
+                { word: "ÄPPLE", emoji: "🍎" }, { word: "PÄRON", emoji: "🍐" }, { word: "BANAN", emoji: "🍌" },
+                { word: "CITRO", emoji: "🍋" }, { word: "DRUVA", emoji: "🍇" }, { word: "TOMAT", emoji: "🍅" },
+                { word: "MOROT", emoji: "🥕" }, { word: "GURKA", emoji: "🥒" }, { word: "PIZZA", emoji: "🍕" },
+                { word: "GLASS", emoji: "🍦" }, { word: "KAFE", emoji: "☕" }, { word: "KANIN", emoji: "🐰" },
+                { word: "BJÖRN", emoji: "🐻" }, { word: "PANDA", emoji: "🐼" }, { word: "KOALA", emoji: "🐨" },
+                { word: "TIGER", emoji: "🐯" }, { word: "GRODA", emoji: "🐸" }, { word: "ANKAR", emoji: "🦆" },
+                { word: "UGGLA", emoji: "🦉" }, { word: "FLADD", emoji: "🦇" }, { word: "FJÄR3", emoji: "🦋" },
+                { word: "SKÖLD", emoji: "🐢" }, { word: "DELFI", emoji: "🐬" }, { word: "KRABB", emoji: "🦀" },
+                { word: "ELEFA", emoji: "🐘" }, { word: "GIRAF", emoji: "🦒" }, { word: "FLAMI", emoji: "🦩" },
+                { word: "SVALA", emoji: "🦢" }, { word: "PÅFÅG", emoji: "🦚" }, { word: "KAKTU", emoji: "🌵" },
+                { word: "SVAMP", emoji: "🍄" }, { word: "STJÄR", emoji: "⭐" }, { word: "MOLNT", emoji: "☁️" }, { word: "HJÄRT", emoji: "❤️" },
+                { word: "RAKET", emoji: "🚀" }, { word: "HELIK", emoji: "🚁" }, { word: "TRAKT", emoji: "🚜" },
+                { word: "BRAND", emoji: "🚒" }, { word: "AMBUL", emoji: "🚑" }, { word: "POLIS", emoji: "🚓" },
+                { word: "RADIO", emoji: "📻" }, { word: "DATOR", emoji: "💻" }, { word: "LAMPA", emoji: "💡" },
+                { word: "PENNA", emoji: "✏️" }, { word: "NYCKE", emoji: "🔑" }, { word: "KRONA", emoji: "👑" },
+                { word: "MÖSSA", emoji: "🧢" }, { word: "KLÄNN", emoji: "👗" }, { word: "VÄSKA", emoji: "🎒" },
+                { word: "ROBOT", emoji: "🤖" }, { word: "TOMTE", emoji: "🎅" }, { word: "SNÖGU", emoji: "☃️" },
+                { word: "CYKEL", emoji: "🚲" }, { word: "SKEPP", emoji: "🚢" }, { word: "KARTA", emoji: "🧭" }
+            ]
+        };
+
+        const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖ".split("");
+
+        // Speltillstånd
+        let selectedWordLength = 0; // 0 = Blandat, 3, 4, 5
+        let currentRoundQuestions = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+
+        let currentWord = "";
+        let currentEmoji = "";
+        let currentLetterIndex = 0;
+        let attemptsLeftForCurrentLetter = 2;
+        let soundEnabled = true;
+
+        // Historik för summering
+        let letterResultsForCurrentWord = [];
+        let roundHistory = [];
+        let wordHadWrongAttempt = false;
+
+        // Ljudinställningar med Web Audio API
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+
+                if (type === 'correct') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, now); // C5
+                    osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.15); // E5
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                } else if (type === 'wrong') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, now); // A3
+                    osc.frequency.linearRampToValueAtTime(160, now + 0.2);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                } else if (type === 'word-complete') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523.25, now); // C5
+                    osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+                    osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
+                    osc.frequency.setValueAtTime(1046.50, now + 0.3); // C6
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                    osc.start(now);
+                    osc.stop(now + 0.5);
+                } else if (type === 'win') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.4);
+                    gain.gain.setValueAtTime(0.4, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+                    osc.start(now);
+                    osc.stop(now + 0.6);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById("sound-icon").textContent = soundEnabled ? "🔊" : "🔇";
+        }
+
+        function shuffle(array) {
+            let arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function getRandomLetterExcept(excludeList) {
+            let letter;
+            do {
+                letter = ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
+            } while (excludeList.includes(letter));
+            return letter;
+        }
+
+        function selectLength(len) {
+            selectedWordLength = len;
+            document.querySelectorAll(".len-btn").forEach(btn => {
+                btn.classList.remove("bg-indigo-600", "text-white", "border-indigo-800");
+                btn.classList.add("bg-white", "text-indigo-700", "border-indigo-200");
+            });
+
+            const activeBtn = document.getElementById(`len-btn-${len}`);
+            if (activeBtn) {
+                activeBtn.classList.remove("bg-white", "text-indigo-700", "border-indigo-200");
+                activeBtn.classList.add("bg-indigo-600", "text-white", "border-indigo-800");
+            }
+        }
+
+        function startGame() {
+            initAudio();
+            score = 0;
+            currentQuestionIndex = 0;
+            roundHistory = [];
+
+            // Välj pool baserat på inställning
+            let pool = [];
+            if (selectedWordLength === 3) pool = WORD_DATABASE[3];
+            else if (selectedWordLength === 4) pool = WORD_DATABASE[4];
+            else if (selectedWordLength === 5) pool = WORD_DATABASE[5];
+            else {
+                // Blandat 3-5
+                pool = [...WORD_DATABASE[3], ...WORD_DATABASE[4], ...WORD_DATABASE[5]];
+            }
+
+            currentRoundQuestions = shuffle(pool).slice(0, 5);
+
+            document.getElementById("start-screen").classList.add("hidden");
+            document.getElementById("result-screen").classList.add("hidden");
+            document.getElementById("game-screen").classList.remove("hidden");
+            document.getElementById("game-screen").classList.add("flex");
+
+            showNextWord();
+        }
+
+        function showNextWord() {
+            const item = currentRoundQuestions[currentQuestionIndex];
+            currentWord = item.word.toUpperCase();
+            currentEmoji = item.emoji;
+            currentLetterIndex = 0;
+            attemptsLeftForCurrentLetter = 2;
+            letterResultsForCurrentWord = [];
+            wordHadWrongAttempt = false;
+
+            document.getElementById("question-number").textContent = `${currentQuestionIndex + 1}/5`;
+            document.getElementById("score-count").textContent = score;
+            document.getElementById("emoji-display").textContent = currentEmoji;
+
+            const feedbackEl = document.getElementById("feedback-message");
+            feedbackEl.classList.add("opacity-0");
+
+            updateAttemptsBadge();
+            renderLetterBoxes();
+            renderOptionButtons();
+        }
+
+        function updateAttemptsBadge() {
+            const iconsEl = document.getElementById("attempts-icons");
+            if (attemptsLeftForCurrentLetter === 2) {
+                iconsEl.textContent = "🔴🔴";
+            } else if (attemptsLeftForCurrentLetter === 1) {
+                iconsEl.textContent = "🔴⚪";
+            } else {
+                iconsEl.textContent = "⚪⚪";
+            }
+        }
+
+        function renderLetterBoxes() {
+            const container = document.getElementById("letter-boxes");
+            container.innerHTML = "";
+
+            for (let i = 0; i < currentWord.length; i++) {
+                const box = document.createElement("div");
+                box.id = `letter-box-${i}`;
+                box.className = "w-11 h-13 sm:w-14 sm:h-16 rounded-2xl border-4 flex items-center justify-center text-2xl sm:text-3xl font-extrabold shadow-md transition-all duration-200";
+
+                if (i < currentLetterIndex) {
+                    // Redan avklarade bokstäver
+                    const res = letterResultsForCurrentWord[i];
+                    box.textContent = currentWord[i];
+                    if (res && res.attemptsUsed === 1) {
+                        box.classList.add("bg-green-500", "text-white", "border-green-600");
+                    } else {
+                        box.classList.add("bg-amber-400", "text-white", "border-amber-500");
+                    }
+                } else if (i === currentLetterIndex) {
+                    // Aktiv bokstav
+                    box.textContent = "?";
+                    box.classList.add("bg-indigo-100", "text-indigo-600", "border-indigo-400", "scale-105", "animate-pulse");
+                } else {
+                    // Kommande bokstäver
+                    box.textContent = "";
+                    box.classList.add("bg-slate-100", "text-slate-400", "border-slate-200");
+                }
+
+                container.appendChild(box);
+            }
+        }
+
+        function renderOptionButtons() {
+            const container = document.getElementById("options-container");
+            container.innerHTML = "";
+
+            const targetLetter = currentWord[currentLetterIndex];
+
+            // Generera 2 felaktiga alternativ
+            const wrong1 = getRandomLetterExcept([targetLetter]);
+            const wrong2 = getRandomLetterExcept([targetLetter, wrong1]);
+
+            const options = shuffle([targetLetter, wrong1, wrong2]);
+
+            options.forEach(letter => {
+                const btn = document.createElement("button");
+                btn.className = "btn-3d btn-key bg-indigo-500 hover:bg-indigo-600 text-white font-extrabold text-3xl sm:text-4xl py-4 sm:py-5 rounded-2xl border-b-4 border-indigo-700 shadow-lg active:scale-95 transition";
+                btn.textContent = letter;
+                btn.onclick = () => handleLetterGuess(letter, btn);
+                container.appendChild(btn);
+            });
+        }
+
+        function handleLetterGuess(guessedLetter, btnEl) {
+            const targetLetter = currentWord[currentLetterIndex];
+            const feedbackEl = document.getElementById("feedback-message");
+
+            if (guessedLetter === targetLetter) {
+                // RÄTT BOKSTAV
+                playSound('correct');
+
+                letterResultsForCurrentWord.push({
+                    char: targetLetter,
+                    attemptsUsed: 3 - attemptsLeftForCurrentLetter
+                });
+
+                feedbackEl.textContent = "Rätt! 🌟";
+                feedbackEl.className = "h-8 flex items-center justify-center text-lg sm:text-xl font-extrabold text-green-600 animate-correct opacity-100";
+
+                currentLetterIndex++;
+                attemptsLeftForCurrentLetter = 2;
+
+                renderLetterBoxes();
+
+                if (currentLetterIndex < currentWord.length) {
+                    // Fortsätt till nästa bokstav
+                    updateAttemptsBadge();
+                    renderOptionButtons();
+                } else {
+                    // HELA ORDET ÅTKOMMET!
+                    handleWordCompleted();
+                }
+
+            } else {
+                // FEL BOKSTAV
+                playSound('wrong');
+                wordHadWrongAttempt = true;
+                attemptsLeftForCurrentLetter--;
+
+                btnEl.classList.add("opacity-40", "pointer-events-none", "bg-red-400");
+
+                if (attemptsLeftForCurrentLetter > 0) {
+                    // Ett försök kvar
+                    updateAttemptsBadge();
+                    feedbackEl.textContent = "Försök igen! 💪";
+                    feedbackEl.className = "h-8 flex items-center justify-center text-lg sm:text-xl font-extrabold text-amber-600 animate-wrong opacity-100";
+                } else {
+                    // Inga försök kvar - Visa rätt bokstav och gå vidare
+                    feedbackEl.textContent = `Rätt var ${targetLetter}! 👍`;
+                    feedbackEl.className = "h-8 flex items-center justify-center text-lg sm:text-xl font-extrabold text-indigo-600 opacity-100";
+
+                    letterResultsForCurrentWord.push({
+                        char: targetLetter,
+                        attemptsUsed: 2
+                    });
+
+                    currentLetterIndex++;
+                    attemptsLeftForCurrentLetter = 2;
+
+                    renderLetterBoxes();
+
+                    setTimeout(() => {
+                        if (currentLetterIndex < currentWord.length) {
+                            updateAttemptsBadge();
+                            renderOptionButtons();
+                            feedbackEl.classList.add("opacity-0");
+                        } else {
+                            handleWordCompleted();
+                        }
+                    }, 800);
+                }
+            }
+        }
+
+        function handleWordCompleted() {
+            const isPerfect = !wordHadWrongAttempt;
+            if (isPerfect) {
+                score++;
+                document.getElementById("score-count").textContent = score;
+            }
+
+            roundHistory.push({
+                word: currentWord,
+                emoji: currentEmoji,
+                letterResults: [...letterResultsForCurrentWord],
+                allCorrect: isPerfect
+            });
+
+            // Spela ljud för fullbordat ord
+            playSound('word-complete');
+
+            // Fira med konfetti endast om hela ordet gissades 100% rätt på första försöket
+            if (isPerfect) {
+                try {
+                    confetti({
+                        particleCount: 50,
+                        spread: 60,
+                        origin: { y: 0.7 }
+                    });
+                } catch(e) {}
+            }
+
+            const feedbackEl = document.getElementById("feedback-message");
+            feedbackEl.textContent = isPerfect ? "Snyggt! Helt rätt! 🎉" : "Bra jobbat! ⭐";
+            feedbackEl.className = "h-8 flex items-center justify-center text-lg sm:text-xl font-extrabold text-green-600 opacity-100 animate-correct";
+
+            // Inaktivera knapparna under övergången
+            document.getElementById("options-container").innerHTML = "";
+
+            setTimeout(() => {
+                currentQuestionIndex++;
+                if (currentQuestionIndex < 5) {
+                    showNextWord();
+                } else {
+                    showResults();
+                }
+            }, 1200);
+        }
+
+        function showResults() {
+            playSound('win');
+
+            // Visa konfetti för avslutad omgång
+            try {
+                confetti({
+                    particleCount: 80,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+            } catch(e) {}
+
+            document.getElementById("game-screen").classList.add("hidden");
+            document.getElementById("game-screen").classList.remove("flex");
+            document.getElementById("result-screen").classList.remove("hidden");
+            document.getElementById("result-screen").classList.add("flex");
+
+            document.getElementById("final-score").textContent = score;
+
+            // Bygg summering
+            const summaryGrid = document.getElementById("summary-grid");
+            summaryGrid.innerHTML = "";
+
+            roundHistory.forEach(item => {
+                const card = document.createElement("div");
+                card.className = "flex items-center justify-between p-2.5 rounded-xl border bg-white shadow-sm";
+
+                const isPerfect = item.allCorrect;
+                
+                // Formatera ordet med färgkodade bokstäver
+                let wordHtml = "";
+                item.letterResults.forEach(res => {
+                    if (res.attemptsUsed === 1) {
+                        wordHtml += `<span class="text-green-600 font-extrabold">${res.char}</span>`;
+                    } else {
+                        wordHtml += `<span class="text-amber-500 font-bold">${res.char}</span>`;
+                    }
+                });
+
+                card.innerHTML = `
+                    <div class="flex items-center space-x-2">
+                        <span class="text-2xl">${item.emoji}</span>
+                        <span class="text-base font-extrabold tracking-wider">${wordHtml}</span>
+                    </div>
+                    <div>
+                        ${isPerfect ? '<span class="text-green-500 text-lg">✅</span>' : '<span class="text-amber-500 text-sm font-bold">👍</span>'}
+                    </div>
+                `;
+
+                summaryGrid.appendChild(card);
+            });
+        }
+
+        function restartGame() {
+            document.getElementById("result-screen").classList.add("hidden");
+            document.getElementById("result-screen").classList.remove("flex");
+            document.getElementById("start-screen").classList.remove("hidden");
+            document.getElementById("start-screen").classList.add("flex");
+        }
+
+        // Välj standardalternativ vid start (Blandat)
+        selectLength(0);
+    </script>
+</body>
+</html>
